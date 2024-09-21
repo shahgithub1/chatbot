@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Exchange Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <h1>Stock Exchange Chatbot</h1>
+
+    <div id="chatbox">
+        <div class="message bot-message">Welcome! Please select a Stock Exchange:</div>
+        <div class="message user-message">
+            <button onclick="selectExchange('LSE')">London Stock Exchange (LSE)</button>
+            <button onclick="selectExchange('NASDAQ')">Nasdaq</button>
+            <button onclick="selectExchange('NYSE')">New York Stock Exchange (NYSE)</button>
+        </div>
+    </div>
+
+    <script>
+        let currentExchange = null;
+
+        function selectExchange(exchange) {
+            currentExchange = exchange;
+            fetch('/get_stocks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ exchange })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showMessage(`Error: ${data.error}`, 'bot-message');
+                } else {
+                    showMessage(`You selected ${exchange}. Here are the available stocks:`, 'bot-message');
+                    let stockButtons = data.map(stock => 
+                        `<button onclick="selectStock('${stock.stockName}')">${stock.stockName}</button>`).join(' ');
+                    showMessage(stockButtons, 'user-message');
+                }
+            });
+        }
+
+        function selectStock(stockName) {
+            fetch('/get_stock_price', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ exchange: currentExchange, stock_name: stockName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showMessage(`Error: ${data.error}`, 'bot-message');
+                } else {
+                    showMessage(`The current price of ${stockName} is $${data.price}`, 'bot-message');
+                    showMessage('Select another stock or return to the home menu:', 'bot-message');
+                    showMessage(`
+                        <button onclick="selectExchange('${currentExchange}')">Choose another stock</button>
+                        <button onclick="location.reload()">Return to Home Menu</button>
+                    `, 'user-message');
+                }
+            });
+        }
+
+        function showMessage(message, type) {
+            const chatbox = document.getElementById('chatbox');
+            const newMessage = document.createElement('div');
+            newMessage.classList.add('message', type);
+            newMessage.innerHTML = message;
+            chatbox.appendChild(newMessage);
+        }
+    </script>
+
+</body>
+</html>
